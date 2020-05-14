@@ -14,8 +14,10 @@ func preloadCallback(scope *Scope) {
 		return
 	}
 
-	if _, ok := scope.Get("gorm:auto_preload"); ok {
-		autoPreload(scope)
+	if val, ok := scope.Get("gorm:auto_preload"); ok {
+		if preload, ok := val.(bool); ok && preload {
+			autoPreload(scope)
+		}
 	}
 
 	if scope.Search.preload == nil || scope.HasError() {
@@ -187,6 +189,7 @@ func (scope *Scope) handleHasManyPreload(field *Field, conditions []interface{})
 	preloadDB, preloadConditions := scope.generatePreloadDBWithConditions(conditions)
 
 	// find relations
+	order := field.TagSettings["ORDERBY"]
 	query := fmt.Sprintf("%v IN (%v)", toQueryCondition(scope, relation.ForeignDBNames), toQueryMarks(primaryKeys))
 	values := toQueryValues(primaryKeys)
 	if relation.PolymorphicType != "" {
@@ -195,7 +198,7 @@ func (scope *Scope) handleHasManyPreload(field *Field, conditions []interface{})
 	}
 
 	results := makeSlice(field.Struct.Type)
-	scope.Err(preloadDB.Where(query, values...).Find(results, preloadConditions...).Error)
+	scope.Err(preloadDB.Order(order).Where(query, values...).Find(results, preloadConditions...).Error)
 
 	// assign find results
 	var (
